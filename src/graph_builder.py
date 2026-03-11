@@ -89,6 +89,24 @@ def _is_polygon_geometry_mapping(value: Any) -> bool:
     return _has_valid_polygon_coordinates(geometry_type, coordinates)
 
 
+def _append_polygon_coordinates(
+    extracted_geometry: dict[str, Any], polygon_collection: list[Any]
+) -> bool:
+    extracted_type = extracted_geometry.get("type")
+    if extracted_type == "Polygon":
+        polygon_collection.append(extracted_geometry.get("coordinates"))
+        return True
+
+    if extracted_type == "MultiPolygon":
+        coordinates = extracted_geometry.get("coordinates")
+        if not _is_coordinate_sequence(coordinates):
+            return False
+        polygon_collection.extend(coordinates)
+        return True
+
+    return False
+
+
 def _has_positive_finite_area(geometry: Any) -> bool:
     area = getattr(geometry, "area", None)
     if area is None:
@@ -128,11 +146,18 @@ def _extract_from_geometry_object(value: Any) -> tuple[dict[str, Any] | None, bo
             return None, True
 
         saw_invalid_geometry = False
+        polygon_collection: list[Any] = []
         for geometry in geometries:
             extracted, invalid = _extract_from_geometry_object(geometry)
             if extracted is not None:
-                return extracted, False
+                if not _append_polygon_coordinates(extracted, polygon_collection):
+                    saw_invalid_geometry = True
             saw_invalid_geometry = saw_invalid_geometry or invalid
+
+        if polygon_collection:
+            if len(polygon_collection) == 1:
+                return {"type": "Polygon", "coordinates": polygon_collection[0]}, False
+            return {"type": "MultiPolygon", "coordinates": polygon_collection}, False
         return None, saw_invalid_geometry
 
     return None, False
@@ -156,12 +181,8 @@ def _extract_geometry(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, b
                 continue
             extracted, invalid = _extract_from_geometry_object(geometry)
             if extracted is not None:
-                extracted_type = extracted.get("type")
-                if extracted_type == "Polygon":
-                    polygon_collection.append(extracted.get("coordinates"))
-                elif extracted_type == "MultiPolygon":
-                    coordinates = extracted.get("coordinates") or []
-                    polygon_collection.extend(coordinates)
+                if not _append_polygon_coordinates(extracted, polygon_collection):
+                    saw_invalid_geometry = True
             saw_invalid_geometry = saw_invalid_geometry or invalid
         if polygon_collection:
             if len(polygon_collection) == 1:
@@ -181,7 +202,7 @@ def _extract_geometry(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, b
     return None, False
 
 
-def _load_boundary_polygon(polygon_geojson_path: str | PathLike[str]) -> Any:
+def _load_boundary_polygon(polygon_geojson_path: str | PathLike) -> Any:
     boundary_path = Path(polygon_geojson_path)
     if not boundary_path.exists():
         raise FileNotFoundError(f"Boundary file does not exist: {boundary_path}")
@@ -329,7 +350,7 @@ def _normalise_edge_distances(graph: nx.MultiDiGraph) -> None:
     _normalize_edge_distances(graph)
 
 
-def build_walking_graph_from_polygon(polygon_geojson_path: str | PathLike[str]) -> nx.MultiDiGraph:
+def build_walking_graph_from_polygon(polygon_geojson_path: str | PathLike) -> nx.MultiDiGraph:
     """Load a campus boundary GeoJSON and fetch the walking graph from OSMnx.
 
     Every edge receives a normalized ``distance_m`` value sourced from OSMnx
