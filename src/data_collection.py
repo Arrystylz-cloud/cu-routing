@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Iterable
+from collections import defaultdict
 
 import pandas as pd
 
@@ -16,12 +17,27 @@ def validate_schema(df: pd.DataFrame) -> None:
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-
-def slugify_building_name(name: str) -> str:
+slug_counts = defaultdict(int)
+def slugify_building_name(name: str, existing_slugs=None) -> str:
+    if existing_slugs is None:
+        existing_slugs = set()
+    
+    """Convert to lowercase, remove special characters"""
     slug = re.sub(r"[^a-z0-9\s-]", "", name.lower().strip())
+    """replace spaces with hyphens."""
     slug = re.sub(r"\s+", "-", slug)
-    return re.sub(r"-+", "-", slug).strip("-")
+    """replace multiple hyphens with a single one."""
+    slug = re.sub(r"-+", "-", slug).strip("-")
 
+    """Handles Duplicate"""
+    unique_slug = slug
+    counter = 2
+    while unique_slug in existing_slugs:
+        unique_slug = f"{slug}-{counter}"
+        counter += 1
+
+    existing_slugs.add(unique_slug)
+    return unique_slug
 
 def validate_coordinates(latitudes: Iterable[float], longitudes: Iterable[float]) -> None:
     for index, (lat, lon) in enumerate(zip(latitudes, longitudes)):
