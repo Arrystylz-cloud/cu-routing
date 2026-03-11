@@ -25,10 +25,24 @@ This repo is optimized for beginner contributors.
 5. Approve when checklist is complete.
 6. Ensure `@Temiloluwa-Ogundiran` approved before merge.
 
+## Codex Review Workflow
+1. Maintainer sends PR link or number to Codex in this thread.
+2. Codex reviews patch, risks, tests, and regression concerns.
+3. Codex returns structured feedback and required changes.
+4. Contributor updates PR and requests re-review.
+5. Final merge happens only after maintainer approval.
+
 ## Merge Rules
 - Squash and merge preferred for clean history.
 - Merge only when all required checks pass.
 - If conflicts exist, ask contributor to rebase/merge latest `main`.
+- `main` branch is protected:
+  - Pull request required before merge.
+  - At least 1 approval required.
+  - Code owner review required.
+  - Stale approvals dismissed on new commits.
+  - Conversation resolution required.
+  - Force pushes and deletions blocked.
 
 ## Suggested Labels
 - `good-first-issue`
