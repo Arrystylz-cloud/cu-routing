@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 import math
+from os import PathLike
 from pathlib import Path
 from typing import Any
 
@@ -162,7 +163,7 @@ def _extract_geometry(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, b
     return None, False
 
 
-def _load_boundary_polygon(polygon_geojson_path: str) -> Any:
+def _load_boundary_polygon(polygon_geojson_path: str | PathLike[str]) -> Any:
     boundary_path = Path(polygon_geojson_path)
     if not boundary_path.exists():
         raise FileNotFoundError(f"Boundary file does not exist: {boundary_path}")
@@ -284,6 +285,8 @@ def _normalize_edge_distances(graph: nx.MultiDiGraph) -> None:
             raise ValueError(f"Graph contains edge without length after normalization ({edge_label}).")
 
         raw_length = edge_data["length"]
+        if isinstance(raw_length, bool):
+            raise ValueError(f"Edge length must be numeric, not boolean for edge {edge_label}.")
         try:
             length_m = float(raw_length)
         except (TypeError, ValueError) as exc:
