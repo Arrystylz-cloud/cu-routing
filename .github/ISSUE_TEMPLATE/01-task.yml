@@ -1,0 +1,46 @@
+name: Task
+description: Small, clear project task (good for beginner contributors)
+title: "[Task] "
+labels:
+  - help wanted
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please keep this task small and focused.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence describing what should be done.
+      placeholder: Implement building_id slug generator
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files to touch
+      description: List exact files expected.
+      placeholder: |
+        src/data_collection.py
+        tests/test_data_collection.py
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What must be true for this task to be complete?
+      placeholder: |
+        - [ ] Function handles duplicate names
+        - [ ] Unit tests added
+        - [ ] pytest passes
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes for beginners
+      description: Helpful hints, links, examples.
+      placeholder: Start from docs/guides/git-beginner-guide.md
+

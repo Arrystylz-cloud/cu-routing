@@ -1,0 +1,47 @@
+# CU Routing (Covenant University)
+
+Team project for learning Git collaboration while building a data-science routing pipeline.
+
+## What We Are Building
+- Collect building coordinates for Covenant University (OpenStreetMap source).
+- Build a walking network graph.
+- Compute shortest paths for all building pairs.
+- Export clean CSV outputs for analysis.
+
+## Project Outputs
+- `data/processed/buildings.csv`
+- `data/processed/graph_edges.csv`
+- `data/processed/routes.csv`
+
+## Team Workflow (Beginner Friendly)
+1. Fork this repo.
+2. Pick an open issue.
+3. Create a branch in your fork.
+4. Make only the requested change.
+5. Open a PR to this repo.
+6. Maintainers review and merge.
+
+Read these first:
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [Git Beginner Guide](docs/guides/git-beginner-guide.md)
+- [Maintainer Playbook](docs/guides/maintainer-playbook.md)
+- [Seed Issues](docs/issues/seed-issues.md)
+
+## Quick Start
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+pytest -q
+```
+
+## Repository Structure
+```text
+src/                 # project code
+tests/               # unit tests
+data/manual/         # manual input files
+data/processed/      # generated csv outputs
+docs/guides/         # beginner + maintainer guides
+docs/issues/         # ready issue definitions
+scripts/             # helper scripts (including issue creation)
+```

@@ -1,0 +1,30 @@
+# Local agent/system instructions
+AGENTS.MD
+AGENTS.md
+
+# Local planning and orchestration artifacts
+tasks/
+scripts/
+docs/issues/seed-issues.md
+docs/issues/seed-issues.json
+
+# Python virtual environment and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Environment files
+.env
+.env.*
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Generated outputs
+data/processed/*.csv
+!data/processed/.gitkeep
