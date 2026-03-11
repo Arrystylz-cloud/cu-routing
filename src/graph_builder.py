@@ -166,10 +166,6 @@ def _load_boundary_polygon(polygon_geojson_path: str) -> Any:
     return polygon
 
 
-def _has_missing_edge_lengths(graph: nx.MultiDiGraph) -> bool:
-    return any(edge_data.get("length") is None for _, _, _, edge_data in graph.edges(keys=True, data=True))
-
-
 def _resolve_add_edge_lengths(ox: Any) -> Any:
     distance_module = getattr(ox, "distance", None)
     if distance_module is not None and hasattr(distance_module, "add_edge_lengths"):
@@ -211,7 +207,8 @@ def _fill_missing_edge_lengths(graph: nx.MultiDiGraph, ox: Any) -> nx.MultiDiGra
         return graph
 
     add_edge_lengths = _resolve_add_edge_lengths(ox)
-    if _supports_edges_argument(add_edge_lengths):
+    supports_edges_argument = _supports_edges_argument(add_edge_lengths)
+    if supports_edges_argument:
         returned_graph = add_edge_lengths(graph, edges=missing_edges)
     else:
         returned_graph = add_edge_lengths(graph)
@@ -219,12 +216,15 @@ def _fill_missing_edge_lengths(graph: nx.MultiDiGraph, ox: Any) -> nx.MultiDiGra
     if returned_graph is not None:
         graph = returned_graph
 
-    # Preserve existing lengths in case the OSMnx implementation recomputed
-    # all edges instead of only the missing subset.
-    for edge_key, original_length in preserved_lengths.items():
-        source, target, key = edge_key
-        if graph.has_edge(source, target, key):
-            graph.edges[source, target, key]["length"] = original_length
+    if not supports_edges_argument:
+        # Some OSMnx variants only support add_edge_lengths(graph), which may
+        # recompute every edge length. In that broad fallback path we keep
+        # originally-present lengths to avoid silently altering trusted values
+        # when only a subset of edges was missing.
+        for edge_key, original_length in preserved_lengths.items():
+            source, target, key = edge_key
+            if graph.has_edge(source, target, key):
+                graph.edges[source, target, key]["length"] = original_length
 
     return graph
 
