@@ -32,6 +32,11 @@ This repo is optimized for beginner contributors.
 4. Contributor updates PR and requests re-review.
 5. Final merge happens only after maintainer approval.
 
+## Automatic Review Bot
+- GitHub Action `Codex PR Review` posts automated review feedback on PRs.
+- Configure `OPENAI_API_KEY` in repository secrets to enable it.
+- Setup guide: `docs/guides/automatic-codex-reviews.md`
+
 ## Merge Rules
 - Squash and merge preferred for clean history.
 - Merge only when all required checks pass.
