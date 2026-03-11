@@ -200,7 +200,7 @@ Output requirements (Markdown):
 4. Then "Testing" section listing tests to add/run.
 5. If no significant issues, say "No blocking issues found." and still include lightweight suggestions.
 6. Do not include extra preamble before "### Codex Review".
-7. Keep the whole response under 220 words.
+7. Keep the whole response under 350 words.
 
 Keep response concise and actionable.
 """.strip()
@@ -248,7 +248,7 @@ def make_review(openai_api_key: str, model: str, prompt: str) -> str:
             response = client.responses.create(
                 model=model,
                 input=input_payload,
-                max_output_tokens=2200,
+                max_output_tokens=4096,
             )
         except Exception as exc:
             diagnostics.append(f"api_error={exc}")
