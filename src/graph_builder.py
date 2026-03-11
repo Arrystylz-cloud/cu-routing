@@ -28,12 +28,29 @@ def _import_shapely_geometry() -> tuple[Any, Any, Any]:
     return MultiPolygon, Polygon, shape
 
 
+def _has_valid_polygon_coordinates(geometry_type: str, coordinates: Any) -> bool:
+    if not isinstance(coordinates, list) or not coordinates:
+        return False
+    if geometry_type == "Polygon":
+        return any(isinstance(ring, list) and len(ring) >= 4 for ring in coordinates)
+    if geometry_type == "MultiPolygon":
+        for polygon in coordinates:
+            if not isinstance(polygon, list) or not polygon:
+                continue
+            if any(isinstance(ring, list) and len(ring) >= 4 for ring in polygon):
+                return True
+        return False
+    return False
+
+
 def _is_polygon_geometry_mapping(value: Any) -> bool:
     if not isinstance(value, dict):
         return False
     geometry_type = value.get("type")
     coordinates = value.get("coordinates")
-    return geometry_type in SUPPORTED_BOUNDARY_GEOMETRY_TYPES and coordinates is not None
+    if geometry_type not in SUPPORTED_BOUNDARY_GEOMETRY_TYPES:
+        return False
+    return _has_valid_polygon_coordinates(geometry_type, coordinates)
 
 
 def _extract_geometry(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, bool]:
@@ -110,13 +127,32 @@ def _has_missing_edge_lengths(graph: nx.MultiDiGraph) -> bool:
     return any(edge_data.get("length") is None for _, _, _, edge_data in graph.edges(keys=True, data=True))
 
 
+def _resolve_add_edge_lengths(ox: Any) -> Any:
+    distance_module = getattr(ox, "distance", None)
+    if distance_module is not None and hasattr(distance_module, "add_edge_lengths"):
+        return distance_module.add_edge_lengths
+    if hasattr(ox, "add_edge_lengths"):
+        return ox.add_edge_lengths
+    raise RuntimeError(
+        "osmnx version does not expose add_edge_lengths; "
+        "please upgrade osmnx or provide edge lengths."
+    )
+
+
 def _normalise_edge_distances(graph: nx.MultiDiGraph) -> None:
-    for _, _, _, edge_data in graph.edges(keys=True, data=True):
+    for source, target, key, edge_data in graph.edges(keys=True, data=True):
+        edge_label = f"{source}->{target}, key={key}"
         if edge_data.get("length") is None:
-            raise ValueError("Graph contains edges without length after normalization.")
-        length_m = float(edge_data["length"])
+            raise ValueError(f"Graph contains edge without length after normalization ({edge_label}).")
+
+        raw_length = edge_data["length"]
+        try:
+            length_m = float(raw_length)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Edge length is not numeric for edge {edge_label}: {raw_length!r}") from exc
+
         if length_m <= 0:
-            raise ValueError(f"Edge length must be positive, got {length_m}.")
+            raise ValueError(f"Edge length must be positive for edge {edge_label}, got {length_m}.")
         edge_data["distance_m"] = length_m
 
 
@@ -133,7 +169,8 @@ def build_walking_graph_from_polygon(polygon_geojson_path: str) -> nx.MultiDiGra
         raise ValueError("OSMnx returned an empty walking graph for the provided boundary.")
 
     if _has_missing_edge_lengths(graph):
-        graph = ox.distance.add_edge_lengths(graph)
+        add_edge_lengths = _resolve_add_edge_lengths(ox)
+        graph = add_edge_lengths(graph)
 
     _normalise_edge_distances(graph)
     return graph

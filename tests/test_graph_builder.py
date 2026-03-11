@@ -79,6 +79,31 @@ class _FakeOsmnx:
         return self._graph
 
 
+class _FakeOsmnxTopLevelAddEdgeLengths:
+    def __init__(self, graph: nx.MultiDiGraph) -> None:
+        self._graph = graph
+        self.received_kwargs = {}
+        self.top_level_called = False
+
+    def graph_from_polygon(self, _polygon, *, network_type: str, simplify: bool) -> nx.MultiDiGraph:
+        self.received_kwargs = {"network_type": network_type, "simplify": simplify}
+        return self._graph
+
+    def add_edge_lengths(self, graph: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        self.top_level_called = True
+        for _, _, _, edge_data in graph.edges(keys=True, data=True):
+            edge_data.setdefault("length", 21.0)
+        return graph
+
+
+class _FakeOsmnxWithoutAddEdgeLengths:
+    def __init__(self, graph: nx.MultiDiGraph) -> None:
+        self._graph = graph
+
+    def graph_from_polygon(self, _polygon, *, network_type: str, simplify: bool) -> nx.MultiDiGraph:
+        return self._graph
+
+
 def test_build_walking_graph_loads_walk_network_and_sets_distance_m(tmp_path, monkeypatch):
     boundary_path = tmp_path / "campus_boundary.geojson"
     _write_boundary(boundary_path)
@@ -114,6 +139,36 @@ def test_build_walking_graph_adds_missing_length_before_distance_m(tmp_path, mon
     assert result.edges[1, 2, 0]["distance_m"] == pytest.approx(42.0)
 
 
+def test_build_walking_graph_uses_top_level_add_edge_lengths_fallback(tmp_path, monkeypatch):
+    boundary_path = tmp_path / "campus_boundary.geojson"
+    _write_boundary(boundary_path)
+
+    _patch_shapely(monkeypatch)
+    graph = nx.MultiDiGraph()
+    graph.add_edge(1, 2, key=0)
+    fake_osmnx = _FakeOsmnxTopLevelAddEdgeLengths(graph)
+    monkeypatch.setattr(graph_builder, "_import_osmnx", lambda: fake_osmnx)
+
+    result = graph_builder.build_walking_graph_from_polygon(str(boundary_path))
+
+    assert fake_osmnx.top_level_called is True
+    assert result.edges[1, 2, 0]["distance_m"] == pytest.approx(21.0)
+
+
+def test_build_walking_graph_raises_when_add_edge_lengths_unavailable(tmp_path, monkeypatch):
+    boundary_path = tmp_path / "campus_boundary.geojson"
+    _write_boundary(boundary_path)
+
+    _patch_shapely(monkeypatch)
+    graph = nx.MultiDiGraph()
+    graph.add_edge(1, 2, key=0)
+    fake_osmnx = _FakeOsmnxWithoutAddEdgeLengths(graph)
+    monkeypatch.setattr(graph_builder, "_import_osmnx", lambda: fake_osmnx)
+
+    with pytest.raises(RuntimeError, match="does not expose add_edge_lengths"):
+        graph_builder.build_walking_graph_from_polygon(str(boundary_path))
+
+
 def test_build_walking_graph_rejects_invalid_geojson(tmp_path):
     invalid_boundary_path = tmp_path / "campus_boundary.geojson"
     invalid_boundary_path.write_text(json.dumps({"type": "FeatureCollection", "features": []}), encoding="utf-8")
@@ -134,6 +189,17 @@ def test_load_boundary_polygon_rejects_malformed_geometry_mapping(tmp_path):
     invalid_geometry_path = tmp_path / "campus_boundary.geojson"
     invalid_geometry_path.write_text(
         json.dumps({"type": "Feature", "geometry": {"coordinates": []}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Boundary geometry is not a valid GeoJSON geometry"):
+        graph_builder._load_boundary_polygon(str(invalid_geometry_path))
+
+
+def test_load_boundary_polygon_rejects_empty_coordinates(tmp_path):
+    invalid_geometry_path = tmp_path / "campus_boundary.geojson"
+    invalid_geometry_path.write_text(
+        json.dumps({"type": "Feature", "geometry": {"type": "Polygon", "coordinates": []}}),
         encoding="utf-8",
     )
 
@@ -186,3 +252,19 @@ def test_load_boundary_polygon_preserves_multipolygon(tmp_path, monkeypatch):
     geometry = graph_builder._load_boundary_polygon(str(boundary_path))
 
     assert isinstance(geometry, _FakeMultiPolygon)
+
+
+def test_normalise_edge_distances_rejects_non_numeric_length():
+    graph = nx.MultiDiGraph()
+    graph.add_edge(10, 20, key=0, length="unknown")
+
+    with pytest.raises(ValueError, match=r"Edge length is not numeric.*10->20.*key=0"):
+        graph_builder._normalise_edge_distances(graph)
+
+
+def test_normalise_edge_distances_rejects_non_positive_length():
+    graph = nx.MultiDiGraph()
+    graph.add_edge(10, 20, key=1, length=0)
+
+    with pytest.raises(ValueError, match=r"Edge length must be positive.*10->20.*key=1"):
+        graph_builder._normalise_edge_distances(graph)
