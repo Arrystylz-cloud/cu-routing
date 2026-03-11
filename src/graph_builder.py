@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -107,6 +108,7 @@ def _extract_geometry(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, b
             return None, False
 
         saw_invalid_geometry = False
+        polygon_collection: list[Any] = []
         for feature in features:
             if not isinstance(feature, dict) or feature.get("type") != "Feature":
                 continue
@@ -115,8 +117,17 @@ def _extract_geometry(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, b
                 continue
             extracted, invalid = _extract_from_geometry_object(geometry)
             if extracted is not None:
-                return extracted, False
+                extracted_type = extracted.get("type")
+                if extracted_type == "Polygon":
+                    polygon_collection.append(extracted.get("coordinates"))
+                elif extracted_type == "MultiPolygon":
+                    coordinates = extracted.get("coordinates") or []
+                    polygon_collection.extend(coordinates)
             saw_invalid_geometry = saw_invalid_geometry or invalid
+        if polygon_collection:
+            if len(polygon_collection) == 1:
+                return {"type": "Polygon", "coordinates": polygon_collection[0]}, False
+            return {"type": "MultiPolygon", "coordinates": polygon_collection}, False
         return None, saw_invalid_geometry
 
     if payload_type == "Feature":
@@ -217,7 +228,13 @@ def _fill_missing_edge_lengths(graph: nx.MultiDiGraph, ox: Any) -> nx.MultiDiGra
     add_edge_lengths = _resolve_add_edge_lengths(ox)
     supports_edges_argument = _supports_edges_argument(add_edge_lengths)
     if supports_edges_argument:
-        returned_graph = add_edge_lengths(graph, edges=missing_edges)
+        try:
+            returned_graph = add_edge_lengths(graph, edges=missing_edges)
+        except TypeError:
+            # Some callables advertise an `edges` argument via reflection but
+            # still reject it at runtime (wrappers/partials/bound C-extensions).
+            supports_edges_argument = False
+            returned_graph = add_edge_lengths(graph)
     else:
         returned_graph = add_edge_lengths(graph)
 
@@ -238,6 +255,12 @@ def _fill_missing_edge_lengths(graph: nx.MultiDiGraph, ox: Any) -> nx.MultiDiGra
 
 
 def _normalise_edge_distances(graph: nx.MultiDiGraph) -> None:
+    """Normalize edge lengths to `distance_m` while preserving original `length`.
+
+    We intentionally keep both fields:
+    - `length`: original upstream value (commonly from OSMnx)
+    - `distance_m`: validated finite positive float used by routing logic
+    """
     for source, target, key, edge_data in graph.edges(keys=True, data=True):
         edge_label = f"{source}->{target}, key={key}"
         if edge_data.get("length") is None:
@@ -248,6 +271,8 @@ def _normalise_edge_distances(graph: nx.MultiDiGraph) -> None:
             length_m = float(raw_length)
         except (TypeError, ValueError) as exc:
             raise ValueError(f"Edge length is not numeric for edge {edge_label}: {raw_length!r}") from exc
+        if not math.isfinite(length_m):
+            raise ValueError(f"Edge length must be finite for edge {edge_label}, got {length_m}.")
 
         if length_m <= 0:
             raise ValueError(f"Edge length must be positive for edge {edge_label}, got {length_m}.")
