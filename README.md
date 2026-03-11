@@ -25,7 +25,6 @@ Read these first:
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [Git Beginner Guide](docs/guides/git-beginner-guide.md)
 - [Maintainer Playbook](docs/guides/maintainer-playbook.md)
-- [Seed Issues](docs/issues/seed-issues.md)
 
 ## Quick Start
 ```bash
@@ -42,6 +41,4 @@ tests/               # unit tests
 data/manual/         # manual input files
 data/processed/      # generated csv outputs
 docs/guides/         # beginner + maintainer guides
-docs/issues/         # ready issue definitions
-scripts/             # helper scripts (including issue creation)
 ```
