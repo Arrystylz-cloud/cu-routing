@@ -25,6 +25,7 @@ Read these first:
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [Git Beginner Guide](docs/guides/git-beginner-guide.md)
 - [Maintainer Playbook](docs/guides/maintainer-playbook.md)
+- [Automatic Codex Reviews](docs/guides/automatic-codex-reviews.md)
 
 ## Quick Start
 ```bash
