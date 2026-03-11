@@ -10,6 +10,7 @@ from openai import OpenAI
 COMMENT_MARKER = "<!-- codex-auto-review -->"
 MAX_DIFF_CHARS = 120_000
 MAX_PATCH_CHARS_PER_FILE = 12_000
+MAX_FILES_BLOCK_CHARS = 80_000
 
 
 def env(name: str) -> str:
@@ -74,7 +75,8 @@ def build_prompt(pr: dict[str, Any], files: list[dict[str, Any]], diff: str) -> 
             f"FILE: {filename}\nSTATUS: {status}\n+{additions} / -{deletions}\nPATCH:\n{patch}\n"
         )
 
-    files_block = "\n".join(changed_files_summary)
+    files_block = truncate(
+        "\n".join(changed_files_summary), MAX_FILES_BLOCK_CHARS)
     diff_block = truncate(diff, MAX_DIFF_CHARS)
     title = pr.get("title", "")
     body = pr.get("body") or ""
