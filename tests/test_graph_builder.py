@@ -168,6 +168,15 @@ class _FakeOsmnxWithoutAddEdgeLengths:
         return self._graph
 
 
+class _FakeOsmnxEmptyGraph:
+    def graph_from_polygon(self, _polygon, *, network_type: str, simplify: bool) -> nx.MultiDiGraph:
+        return nx.MultiDiGraph()
+
+
+class _FakeOsmnxNoAddLengthAPIs:
+    distance = object()
+
+
 def test_build_walking_graph_loads_walk_network_and_sets_distance_m(tmp_path, monkeypatch):
     boundary_path = tmp_path / "campus_boundary.geojson"
     _write_boundary(boundary_path)
@@ -286,6 +295,17 @@ def test_build_walking_graph_raises_when_add_edge_lengths_unavailable(tmp_path, 
         graph_builder.build_walking_graph_from_polygon(str(boundary_path))
 
 
+def test_build_walking_graph_raises_for_empty_osmnx_graph(tmp_path, monkeypatch):
+    boundary_path = tmp_path / "campus_boundary.geojson"
+    _write_boundary(boundary_path)
+
+    _patch_shapely(monkeypatch)
+    monkeypatch.setattr(graph_builder, "_import_osmnx", lambda: _FakeOsmnxEmptyGraph())
+
+    with pytest.raises(ValueError, match="empty walking graph"):
+        graph_builder.build_walking_graph_from_polygon(str(boundary_path))
+
+
 def test_build_walking_graph_rejects_invalid_geojson(tmp_path):
     invalid_boundary_path = tmp_path / "campus_boundary.geojson"
     invalid_boundary_path.write_text(json.dumps({"type": "FeatureCollection", "features": []}), encoding="utf-8")
@@ -300,6 +320,13 @@ def test_load_boundary_polygon_rejects_invalid_json(tmp_path):
 
     with pytest.raises(ValueError, match="Invalid boundary GeoJSON"):
         graph_builder._load_boundary_polygon(str(invalid_boundary_path))
+
+
+def test_load_boundary_polygon_rejects_missing_file(tmp_path):
+    missing_boundary_path = tmp_path / "missing_boundary.geojson"
+
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        graph_builder._load_boundary_polygon(str(missing_boundary_path))
 
 
 def test_load_boundary_polygon_rejects_directory_path(tmp_path):
@@ -416,6 +443,11 @@ def test_is_polygon_geometry_mapping_accepts_tuple_coordinates():
     }
 
     assert graph_builder._is_polygon_geometry_mapping(geometry) is True
+
+
+def test_resolve_add_edge_lengths_error_lists_checked_apis():
+    with pytest.raises(RuntimeError, match=r"distance\.add_edge_lengths=False"):
+        graph_builder._resolve_add_edge_lengths(_FakeOsmnxNoAddLengthAPIs())
 
 
 def test_normalise_edge_distances_rejects_non_numeric_length():

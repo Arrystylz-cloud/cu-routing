@@ -168,13 +168,21 @@ def _load_boundary_polygon(polygon_geojson_path: str) -> Any:
 
 def _resolve_add_edge_lengths(ox: Any) -> Any:
     distance_module = getattr(ox, "distance", None)
-    if distance_module is not None and hasattr(distance_module, "add_edge_lengths"):
+    has_distance_add_edge_lengths = distance_module is not None and hasattr(distance_module, "add_edge_lengths")
+    has_top_level_add_edge_lengths = hasattr(ox, "add_edge_lengths")
+
+    if has_distance_add_edge_lengths:
         return distance_module.add_edge_lengths
-    if hasattr(ox, "add_edge_lengths"):
+    if has_top_level_add_edge_lengths:
         return ox.add_edge_lengths
+
     raise RuntimeError(
-        "osmnx version does not expose add_edge_lengths; "
-        "please upgrade osmnx or provide edge lengths."
+        "osmnx does not expose add_edge_lengths "
+        "(checked: "
+        f"distance.add_edge_lengths={has_distance_add_edge_lengths}, "
+        f"add_edge_lengths={has_top_level_add_edge_lengths}). "
+        "Please use an osmnx version that provides one of these APIs "
+        "or precompute edge lengths before routing."
     )
 
 
