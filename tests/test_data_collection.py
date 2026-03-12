@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from src.data_collection import slugify_building_name, validate_coordinates, validate_schema, load_buildings_csv
 
@@ -50,3 +51,40 @@ Engineering @ Auditorium!,12,22
         "engineering-auditorium-2",
         "engineering-auditorium-3",
     ]
+
+
+
+def test_slugify_empty_name_raises():
+    existing = set()
+    with pytest.raises(ValueError):
+        slugify_building_name("!!!", existing)
+
+
+def test_slugify_non_string_raises():
+    existing = set()
+    with pytest.raises(ValueError):
+        slugify_building_name(None, existing)
+
+
+def test_validate_coordinates_invalid_latitude():
+    with pytest.raises(ValueError):
+        validate_coordinates([100], [0])
+
+
+def test_validate_coordinates_invalid_longitude():
+    with pytest.raises(ValueError):
+        validate_coordinates([0], [200])
+
+
+def test_load_buildings_csv_missing_name_raises(tmp_path):
+    csv = tmp_path / "buildings.csv"
+
+    csv.write_text(
+        """building_name,latitude,longitude
+Engineering Auditorium,10,20
+,11,21
+"""
+    )
+
+    with pytest.raises(ValueError):
+        load_buildings_csv(csv)

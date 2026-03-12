@@ -18,6 +18,9 @@ def validate_schema(df: pd.DataFrame) -> None:
         raise ValueError(f"Missing required columns: {missing}")
 
 def slugify_building_name(name: str, existing_slugs=None) -> str:
+    if not isinstance(name, str):
+        raise ValueError("building_name must be a non-empty string")
+    
     if existing_slugs is None:
         existing_slugs = set()
     
@@ -27,6 +30,9 @@ def slugify_building_name(name: str, existing_slugs=None) -> str:
     slug = re.sub(r"\s+", "-", slug)
     # replace multiple hyphens with a single one.
     slug = re.sub(r"-+", "-", slug).strip("-")
+
+    if not slug:
+        raise ValueError("Empty building_name after slugification is not allowed")
 
     # Handles Duplicate
     unique_slug = slug
@@ -49,7 +55,11 @@ def validate_coordinates(latitudes: Iterable[float], longitudes: Iterable[float]
 def load_buildings_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     validate_schema(df)
+    if df["building_name"].isna().any():
+        raise ValueError("building_name contains null values")
+    
     validate_coordinates(df["latitude"], df["longitude"])
+    
     existing_slugs = set()
 
     df["building_id"] = [
