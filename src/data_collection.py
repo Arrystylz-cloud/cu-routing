@@ -17,19 +17,18 @@ def validate_schema(df: pd.DataFrame) -> None:
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-slug_counts = defaultdict(int)
 def slugify_building_name(name: str, existing_slugs=None) -> str:
     if existing_slugs is None:
         existing_slugs = set()
     
-    """Convert to lowercase, remove special characters"""
+    # Convert to lowercase, remove special characters
     slug = re.sub(r"[^a-z0-9\s-]", "", name.lower().strip())
-    """replace spaces with hyphens."""
+    # replace spaces with hyphens.
     slug = re.sub(r"\s+", "-", slug)
-    """replace multiple hyphens with a single one."""
+    # replace multiple hyphens with a single one.
     slug = re.sub(r"-+", "-", slug).strip("-")
 
-    """Handles Duplicate"""
+    # Handles Duplicate
     unique_slug = slug
     counter = 2
     while unique_slug in existing_slugs:
@@ -51,5 +50,11 @@ def load_buildings_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     validate_schema(df)
     validate_coordinates(df["latitude"], df["longitude"])
-    df["building_id"] = df["building_name"].map(slugify_building_name)
+    existing_slugs = set()
+
+    df["building_id"] = [
+        slugify_building_name(name, existing_slugs)
+        for name in df["building_name"]
+    ]
+
     return df

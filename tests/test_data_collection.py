@@ -1,6 +1,6 @@
 import pandas as pd
 
-from src.data_collection import slugify_building_name, validate_coordinates, validate_schema
+from src.data_collection import slugify_building_name, validate_coordinates, validate_schema, load_buildings_csv
 
 
 def test_slugify_building_name():
@@ -31,3 +31,22 @@ def test_slugify_duplicates():
 
 def test_validate_coordinates_passes():
     validate_coordinates([6.67], [3.15])
+
+def test_load_buildings_csv(tmp_path):
+    csv = tmp_path / "buildings.csv"
+
+    csv.write_text(
+        """building_name,latitude,longitude
+Engineering Auditorium,10,20
+Engineering  Auditorium,11,21
+Engineering @ Auditorium!,12,22
+"""
+    )
+
+    df = load_buildings_csv(csv)
+
+    assert list(df["building_id"]) == [
+        "engineering-auditorium",
+        "engineering-auditorium-2",
+        "engineering-auditorium-3",
+    ]
