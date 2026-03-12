@@ -17,7 +17,7 @@ def validate_schema(df: pd.DataFrame) -> None:
         raise ValueError(f"Missing required columns: {missing}")
 
 def slugify_building_name(name: str, existing_slugs=None) -> str:
-    if not isinstance(name, str):
+    if not isinstance(name, str) or name == "":
         raise ValueError("building_name must be a non-empty string")
     
     
@@ -32,6 +32,17 @@ def slugify_building_name(name: str, existing_slugs=None) -> str:
         raise ValueError("Empty building_name after slugification is not allowed")
 
     # Handles Duplicate
+    if existing_slugs is None:
+        # If no tracking set is provided, we just return the base slug
+        return slug
+    
+    if not isinstance(existing_slugs, set):
+        try:
+            existing_slugs = set(existing_slugs)
+        except TypeError:
+            raise TypeError("existing_slugs must be a set or an iterable")
+
+    # Deduplication logic
     unique_slug = slug
     counter = 2
     while unique_slug in existing_slugs:
@@ -42,7 +53,11 @@ def slugify_building_name(name: str, existing_slugs=None) -> str:
     return unique_slug
 
 def validate_coordinates(latitudes: Iterable[float], longitudes: Iterable[float]) -> None:
-    for index, (lat, lon) in enumerate(zip(latitudes, longitudes)):
+    lats, lons = list(latitudes), list(longitudes)
+    if len(lats) != len(lons):
+        raise ValueError(f"Mismatched coordinate lengths: {len(lats)} lats, {len(lons)} lons")
+    
+    for index, (lat, lon) in enumerate(zip(lats, lons)):
         if not (-90 <= float(lat) <= 90):
             raise ValueError(f"Invalid latitude at row {index}: {lat}")
         if not (-180 <= float(lon) <= 180):
